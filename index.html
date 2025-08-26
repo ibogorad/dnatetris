@@ -28,6 +28,11 @@
 </head>
 <body>
 
+<!-- Game top instruction -->
+<div style="text-align:center;font-size:18px;font-weight:700;color:#111827;margin:12px 0;">
+  Win the game by translating all the DNA to the complete protein
+</div>
+
 <div id="dna-tetris-root">
   <div class="dna-hud" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0;flex-wrap:wrap;padding:0 12px;">
     <strong style="font-size:14px;">DNA Complement Tetris</strong>
@@ -49,8 +54,6 @@
 
   <div class="dna-canvas-wrap">
     <canvas id="dna-board" aria-label="DNA game canvas" role="img"></canvas>
-
-    <!-- Bottom button controls removed per request -->
 
     <div id="dna-overlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);">
       <div style="background:white;padding:16px;border-radius:12px;text-align:center;width:min(90%,520px);box-shadow:0 10px 20px rgba(0,0,0,.2);">
@@ -76,7 +79,87 @@
 </div>
 
 <script>
+/* key modifications: amino acid counter + game header */
+(function(){
+  try{
+    const MOUNT_ID='dna-tetris-root';
+    const BASES=['A','T','C','G'];
+    const COMPL={A:'T',T:'A',C:'G',G:'C'};
+    const COLORS={A:'#4F46E5',T:'#F59E0B',C:'#10B981',G:'#8B5CF6'};
+
+    const DEFAULT_SEQ_LOWER="atgcgtaaaggagaagaacttttcactggagttgtcccaattcttgttgaattagatggtgatgttaatgggcacaaattttctgtcagtggagagggtgaaggtgatgcaacatacggaaaacttacccttaaatttatttgcactactggaaaactacctgttccatggccaacacttgtcactactttcggttatggtgttcaatgctttgcgagatacccagatcatatgaaacagcatgactttttcaagagtgccatgcccgaaggttatgtacaggaaagaactatatttttcaaagatgacgggaactacaagacacgtgctgaagtcaagtttgaaggtgatacccttgttaatagaatcgagttaaaaggtattgattttaaagaagatggaaacattcttggacacaaattggaatacaactataactcacacaatgtatacatcatggcagacaaacaaaagaatggaatcaaagttaacttcaaaattagacacaacattgaagatggaagcgttcaactagcagaccattatcaacaaaatactccaattggcgatggccctgtccttttaccagacaaccattacctgtccacacaatctgccctttcgaaagatcccaacgaaaagagagatcacatggtccttcttgagtttgtaacagctgctgggattacacatggcatggatgaactatacaaataataa";
+    const DEFAULT_SEQ=DEFAULT_SEQ_LOWER.toUpperCase();
+
+    const CODON_TO_AA={TTT:'PHE',TTC:'PHE',TTA:'LEU',TTG:'LEU',CTT:'LEU',CTC:'LEU',CTA:'LEU',CTG:'LEU',ATT:'ILE',ATC:'ILE',ATA:'ILE',ATG:'MET',GTT:'VAL',GTC:'VAL',GTA:'VAL',GTG:'VAL',TCT:'SER',TCC:'SER',TCA:'SER',TCG:'SER',CCT:'PRO',CCC:'PRO',CCA:'PRO',CCG:'PRO',ACT:'THR',ACC:'THR',ACA:'THR',ACG:'THR',GCT:'ALA',GCC:'ALA',GCA:'ALA',GCG:'ALA',TAT:'TYR',TAC:'TYR',TAA:'STOP',TAG:'STOP',CAT:'HIS',CAC:'HIS',CAA:'GLN',CAG:'GLN',AAT:'ASN',AAC:'ASN',AAA:'LYS',AAG:'LYS',GAT:'ASP',GAC:'ASP',GAA:'GLU',GAG:'GLU',TGT:'CYS',TGC:'CYS',TGA:'STOP',TGG:'TRP',CGT:'ARG',CGC:'ARG',CGA:'ARG',CGG:'ARG',AGT:'SER',AGC:'SER',AGA:'ARG',AGG:'ARG',GGT:'GLY',GGC:'GLY',GGA:'GLY',GGG:'GLY'};
+    const AA3_TO_1={PHE:'F',LEU:'L',ILE:'I',MET:'M',VAL:'V',SER:'S',PRO:'P',THR:'T',ALA:'A',TYR:'Y',STOP:'*',HIS:'H',GLN:'Q',ASN:'N',LYS:'K',ASP:'D',GLU:'E',CYS:'C',TRP:'W',ARG:'R',GLY:'G'};
+
+    function ready(fn){document.readyState!=='loading'?fn():document.addEventListener('DOMContentLoaded',fn);}
+    ready(function(){
+      const host=document.getElementById(MOUNT_ID);
+      const cvs=host.querySelector('#dna-board'); const ctx=cvs.getContext('2d');
+      const seqInput=host.querySelector('#dna-seq-input');
+      const startBtn=host.querySelector('#dna-seq-start');
+      const msgEl=host.querySelector('#dna-msg');
+      const startGfpBtn=document.getElementById('startGfpBtn');
+      const startCustomBtn=document.getElementById('startCustomBtn');
+
+      // game state
+      let masterSeq=DEFAULT_SEQ; seqInput.value=DEFAULT_SEQ_LOWER;
+      let processedAA=[], totalAAcount=Math.floor(masterSeq.length/3);
+
+      // geometry
+      const COLS=12, ROWS=9; let dpi=Math.max(1, Math.floor(window.devicePixelRatio||1)); let cell=0,leftPanelPx=0,gridX0=0,labelPx=0,rightPanelPx=0;
+
+      // helper
+      function sanitizeDNA(s){return (s||'').toUpperCase().replace(/[^ATCG]/g,'');}
+      function aaListForRow(row){const out=[];for(let i=0;i<COLS;i+=3){const trip=(row[i]||'')+(row[i+1]||'')+(row[i+2]||'');const aa3=CODON_TO_AA[trip]||'X';out.push(AA3_TO_1[aa3]||'?');}return out;}
+      function sideTitleSize(){ return Math.max(12*dpi, Math.floor(cell*0.45)); }
+
+      function drawAAChain(){
+        const gridH=cell*ROWS; const rowsPerCol=20; const MAX_AA_COLS=5;
+        const panelCenterX=Math.floor(leftPanelPx/2);
+        ctx.save(); ctx.fillStyle='rgba(255,255,255,.7)';
+        const titleSz=sideTitleSize();
+        ctx.font=`${titleSz}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
+        ctx.textAlign='center'; ctx.textBaseline='top';
+        // Title + fraction
+        ctx.fillText(`Completed Amino Acids (${processedAA.length}/${totalAAcount})`, panelCenterX, 4*dpi);
+        ctx.restore();
+      }
+
+      // init canvas sizing + fraction drawing just for demo
+      function resize(){
+        const viewportW=window.innerWidth,viewportH=window.innerHeight;
+        const boxW=host.clientWidth||viewportW;
+        const boxH=Math.max(480,Math.min(Math.round(viewportH*0.78),1100));
+        cvs.style.width=boxW+'px'; cvs.style.height=boxH+'px';
+        cell=Math.floor(Math.min(boxW/COLS,(boxH-60)/(ROWS+1))); cell=Math.max(18,cell);
+        leftPanelPx=160; gridX0=leftPanelPx; labelPx=30; rightPanelPx=260;
+        cvs.width=Math.floor(boxW*dpi); cvs.height=Math.floor(boxH*dpi);
+        ctx.clearRect(0,0,cvs.width,cvs.height);
+        drawAAChain();
+      }
+      window.addEventListener('resize',resize);
+      resize();
+
+      // input validation
+      function validateInput(){const raw=seqInput.value||'';const clean=sanitizeDNA(raw);if(raw!==clean){seqInput.value=clean.toLowerCase();}const ok=clean.length>=3;startBtn.disabled=!ok;}
+      seqInput.addEventListener('input',validateInput); validateInput();
+
+      startGfpBtn.addEventListener('click',()=>{seqInput.value=DEFAULT_SEQ_LOWER;masterSeq=DEFAULT_SEQ;totalAAcount=Math.floor(masterSeq.length/3);processedAA=[];resize();});
+      startCustomBtn.addEventListener('click',()=>{const clean=sanitizeDNA(seqInput.value);masterSeq=clean;totalAAcount=Math.floor(masterSeq.length/3);processedAA=[];resize();});
+    });
+  }catch(err){console.error(err);}
+})();
+</script>
+  
+<script>
 /* ===== DNA Complement Tetris – unified titles, GFP start, no-stack card ===== */
+
+
+
+
+  
 (function(){
   try{
     const MOUNT_ID='dna-tetris-root';
