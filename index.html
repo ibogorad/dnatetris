@@ -55,6 +55,8 @@
   <div class="dna-canvas-wrap">
     <canvas id="dna-board" aria-label="DNA game canvas" role="img"></canvas>
 
+    <!-- Bottom button controls removed -->
+
     <div id="dna-overlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);">
       <div style="background:white;padding:16px;border-radius:12px;text-align:center;width:min(90%,520px);box-shadow:0 10px 20px rgba(0,0,0,.2);">
         <h3 id="dna-ov-title" style="margin:0 0 8px;font-size:18px;color:#111827;">Ready</h3>
@@ -79,87 +81,7 @@
 </div>
 
 <script>
-/* key modifications: amino acid counter + game header */
-(function(){
-  try{
-    const MOUNT_ID='dna-tetris-root';
-    const BASES=['A','T','C','G'];
-    const COMPL={A:'T',T:'A',C:'G',G:'C'};
-    const COLORS={A:'#4F46E5',T:'#F59E0B',C:'#10B981',G:'#8B5CF6'};
-
-    const DEFAULT_SEQ_LOWER="atgcgtaaaggagaagaacttttcactggagttgtcccaattcttgttgaattagatggtgatgttaatgggcacaaattttctgtcagtggagagggtgaaggtgatgcaacatacggaaaacttacccttaaatttatttgcactactggaaaactacctgttccatggccaacacttgtcactactttcggttatggtgttcaatgctttgcgagatacccagatcatatgaaacagcatgactttttcaagagtgccatgcccgaaggttatgtacaggaaagaactatatttttcaaagatgacgggaactacaagacacgtgctgaagtcaagtttgaaggtgatacccttgttaatagaatcgagttaaaaggtattgattttaaagaagatggaaacattcttggacacaaattggaatacaactataactcacacaatgtatacatcatggcagacaaacaaaagaatggaatcaaagttaacttcaaaattagacacaacattgaagatggaagcgttcaactagcagaccattatcaacaaaatactccaattggcgatggccctgtccttttaccagacaaccattacctgtccacacaatctgccctttcgaaagatcccaacgaaaagagagatcacatggtccttcttgagtttgtaacagctgctgggattacacatggcatggatgaactatacaaataataa";
-    const DEFAULT_SEQ=DEFAULT_SEQ_LOWER.toUpperCase();
-
-    const CODON_TO_AA={TTT:'PHE',TTC:'PHE',TTA:'LEU',TTG:'LEU',CTT:'LEU',CTC:'LEU',CTA:'LEU',CTG:'LEU',ATT:'ILE',ATC:'ILE',ATA:'ILE',ATG:'MET',GTT:'VAL',GTC:'VAL',GTA:'VAL',GTG:'VAL',TCT:'SER',TCC:'SER',TCA:'SER',TCG:'SER',CCT:'PRO',CCC:'PRO',CCA:'PRO',CCG:'PRO',ACT:'THR',ACC:'THR',ACA:'THR',ACG:'THR',GCT:'ALA',GCC:'ALA',GCA:'ALA',GCG:'ALA',TAT:'TYR',TAC:'TYR',TAA:'STOP',TAG:'STOP',CAT:'HIS',CAC:'HIS',CAA:'GLN',CAG:'GLN',AAT:'ASN',AAC:'ASN',AAA:'LYS',AAG:'LYS',GAT:'ASP',GAC:'ASP',GAA:'GLU',GAG:'GLU',TGT:'CYS',TGC:'CYS',TGA:'STOP',TGG:'TRP',CGT:'ARG',CGC:'ARG',CGA:'ARG',CGG:'ARG',AGT:'SER',AGC:'SER',AGA:'ARG',AGG:'ARG',GGT:'GLY',GGC:'GLY',GGA:'GLY',GGG:'GLY'};
-    const AA3_TO_1={PHE:'F',LEU:'L',ILE:'I',MET:'M',VAL:'V',SER:'S',PRO:'P',THR:'T',ALA:'A',TYR:'Y',STOP:'*',HIS:'H',GLN:'Q',ASN:'N',LYS:'K',ASP:'D',GLU:'E',CYS:'C',TRP:'W',ARG:'R',GLY:'G'};
-
-    function ready(fn){document.readyState!=='loading'?fn():document.addEventListener('DOMContentLoaded',fn);}
-    ready(function(){
-      const host=document.getElementById(MOUNT_ID);
-      const cvs=host.querySelector('#dna-board'); const ctx=cvs.getContext('2d');
-      const seqInput=host.querySelector('#dna-seq-input');
-      const startBtn=host.querySelector('#dna-seq-start');
-      const msgEl=host.querySelector('#dna-msg');
-      const startGfpBtn=document.getElementById('startGfpBtn');
-      const startCustomBtn=document.getElementById('startCustomBtn');
-
-      // game state
-      let masterSeq=DEFAULT_SEQ; seqInput.value=DEFAULT_SEQ_LOWER;
-      let processedAA=[], totalAAcount=Math.floor(masterSeq.length/3);
-
-      // geometry
-      const COLS=12, ROWS=9; let dpi=Math.max(1, Math.floor(window.devicePixelRatio||1)); let cell=0,leftPanelPx=0,gridX0=0,labelPx=0,rightPanelPx=0;
-
-      // helper
-      function sanitizeDNA(s){return (s||'').toUpperCase().replace(/[^ATCG]/g,'');}
-      function aaListForRow(row){const out=[];for(let i=0;i<COLS;i+=3){const trip=(row[i]||'')+(row[i+1]||'')+(row[i+2]||'');const aa3=CODON_TO_AA[trip]||'X';out.push(AA3_TO_1[aa3]||'?');}return out;}
-      function sideTitleSize(){ return Math.max(12*dpi, Math.floor(cell*0.45)); }
-
-      function drawAAChain(){
-        const gridH=cell*ROWS; const rowsPerCol=20; const MAX_AA_COLS=5;
-        const panelCenterX=Math.floor(leftPanelPx/2);
-        ctx.save(); ctx.fillStyle='rgba(255,255,255,.7)';
-        const titleSz=sideTitleSize();
-        ctx.font=`${titleSz}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
-        ctx.textAlign='center'; ctx.textBaseline='top';
-        // Title + fraction
-        ctx.fillText(`Completed Amino Acids (${processedAA.length}/${totalAAcount})`, panelCenterX, 4*dpi);
-        ctx.restore();
-      }
-
-      // init canvas sizing + fraction drawing just for demo
-      function resize(){
-        const viewportW=window.innerWidth,viewportH=window.innerHeight;
-        const boxW=host.clientWidth||viewportW;
-        const boxH=Math.max(480,Math.min(Math.round(viewportH*0.78),1100));
-        cvs.style.width=boxW+'px'; cvs.style.height=boxH+'px';
-        cell=Math.floor(Math.min(boxW/COLS,(boxH-60)/(ROWS+1))); cell=Math.max(18,cell);
-        leftPanelPx=160; gridX0=leftPanelPx; labelPx=30; rightPanelPx=260;
-        cvs.width=Math.floor(boxW*dpi); cvs.height=Math.floor(boxH*dpi);
-        ctx.clearRect(0,0,cvs.width,cvs.height);
-        drawAAChain();
-      }
-      window.addEventListener('resize',resize);
-      resize();
-
-      // input validation
-      function validateInput(){const raw=seqInput.value||'';const clean=sanitizeDNA(raw);if(raw!==clean){seqInput.value=clean.toLowerCase();}const ok=clean.length>=3;startBtn.disabled=!ok;}
-      seqInput.addEventListener('input',validateInput); validateInput();
-
-      startGfpBtn.addEventListener('click',()=>{seqInput.value=DEFAULT_SEQ_LOWER;masterSeq=DEFAULT_SEQ;totalAAcount=Math.floor(masterSeq.length/3);processedAA=[];resize();});
-      startCustomBtn.addEventListener('click',()=>{const clean=sanitizeDNA(seqInput.value);masterSeq=clean;totalAAcount=Math.floor(masterSeq.length/3);processedAA=[];resize();});
-    });
-  }catch(err){console.error(err);}
-})();
-</script>
-  
-<script>
-/* ===== DNA Complement Tetris – unified titles, GFP start, no-stack card ===== */
-
-
-
-
-  
+/* ===== DNA Complement Tetris – live AA counter, renamed "Tutorial", new card ===== */
 (function(){
   try{
     const MOUNT_ID='dna-tetris-root';
@@ -201,7 +123,8 @@
       let running=false, hasStarted=false, score=0, level=1, lives=3, fallInterval=560, lastStep=0;
       let masterSeq=DEFAULT_SEQ, seqIdx=0;
       let bottomRow=[], placedTop=Array(COLS).fill(null), filledCount=0;
-      let processedAA=[], nextBase='A', piece={base:'A',x:(COLS/2)|0,y:-4}, pendingSpawn=false;
+      let processedAA=[], totalAAcount=Math.floor(masterSeq.length/3);
+      let nextBase='A', piece={base:'A',x:(COLS/2)|0,y:-4}, pendingSpawn=false;
       let showGuide=true;
 
       overlay.style.display='flex'; ovTitle.textContent='Ready';
@@ -213,6 +136,7 @@
       function hasValidSlot(base){const want=COMPL[base];for(let c=0;c<COLS;c++)if(!placedTop[c]&&bottomRow[c]===want)return true;return false;}
       function pickValidBase(){const open=[];for(let c=0;c<COLS;c++)if(!placedTop[c])open.push(c);if(!open.length)return BASES[(Math.random()*BASES.length)|0];const col=open[(Math.random()*open.length)|0];const br=bottomRow[col];return Object.keys(COMPL).find(b=>COMPL[b]===br)||BASES[(Math.random()*BASES.length)|0];}
       function spawnPiece(){const base=(nextBase&&hasValidSlot(nextBase))?nextBase:pickValidBase(); nextBase=pickValidBase(); return {base,x:(COLS/2)|0,y:-4};}
+      function sideTitleSize(){ return Math.max(12*dpi, Math.floor(cell*0.45)); } // unified side title font size
 
       function resize(){
         const viewportW = window.innerWidth, viewportH = window.innerHeight;
@@ -251,9 +175,7 @@
       }
       window.addEventListener('resize', resize);
 
-      /* drawing */
-      function sideTitleSize(){ return Math.max(12*dpi, Math.floor(cell*0.45)); } // unified font size
-
+      /* drawing primitives */
       function roundRect(x,y,w,h,r){const rr=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+rr,y);ctx.arcTo(x+w,y,x+w,y+h,rr);ctx.arcTo(x+w,y+h,x,y+h,rr);ctx.arcTo(x,y+h,x,y,rr);ctx.arcTo(x,y,x+w,y,rr);ctx.closePath();}
       function drawCell(col,row,color,text,alpha=1){const pad=Math.floor(cell*0.08);const x=gridX0+col*cell+pad;const y=row*cell+pad;const s=cell-pad*2;ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle=color;roundRect(x,y,s,s,Math.floor(s*0.2));ctx.fill();ctx.fillStyle='rgba(255,255,255,.95)';ctx.font=`${Math.floor(s*0.5)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,x+s/2,y+s/2+1*dpi);ctx.restore();}
       function drawGrid(){const gridW=cell*COLS,gridH=cell*ROWS;ctx.save();ctx.clearRect(0,0,cvs.width,cvs.height);
@@ -267,7 +189,23 @@
       function drawCodonLabels(){const gridH=cell*ROWS;const y=gridH+Math.floor(labelPx*0.62);ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
         for(let i=0;i<COLS;i+=3){const trip=(bottomRow[i]||'')+(bottomRow[i+1]||'')+(bottomRow[i+2]||'');const aa=CODON_TO_AA[trip]||'—';const cx=gridX0+(i+1.5)*cell;ctx.save();const color=['#2563EB','#D97706','#059669','#7C3AED','#DC2626','#059669'][i/3%6];const padY=7*dpi,w=3*cell-8*dpi;const x=gridX0+i*cell+4*dpi;const h=padY*2+Math.max(12*dpi,Math.floor(cell*0.35));ctx.globalAlpha=.25;ctx.fillStyle=color;roundRect(x,y-h/2,w,h,10*dpi);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle='#fff';ctx.font=`${Math.max(11*dpi,Math.floor(cell*0.37))}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.fillText(aa,cx,y+1*dpi);ctx.restore();}ctx.restore();}
 
-      // Right-side tutorial with third "No stacking" card
+      // Left panel: AA history + live fraction "(X/N)"
+      function drawAAChain(){
+        const gridH=cell*ROWS; const topPad=Math.max(10*dpi,Math.floor(cell*.2)); const bottomPad=Math.max(6*dpi,Math.floor(cell*.15));
+        const usableH=gridH-topPad-bottomPad; const rowsPerCol=ROWS_PER_COL; const colsNeeded=Math.min(MAX_AA_COLS,Math.max(1,Math.ceil(processedAA.length/rowsPerCol)));
+        const rTop=Math.max(9*dpi,Math.floor(cell*.24)); const rBottom=Math.max(7*dpi,Math.floor(cell*.14));
+        const stepY=usableH/rowsPerCol; const colGap=6*dpi; const colWidth=2*rTop+colGap;
+        const panelCenterX=Math.floor(leftPanelPx/2); const totalW=colsNeeded*colWidth; const x0=Math.max(8*dpi, panelCenterX-Math.floor(totalW/2));
+        ctx.save(); ctx.fillStyle='rgba(255,255,255,.7)';
+        const titleSz=sideTitleSize();
+        ctx.font=`${titleSz}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`; ctx.textAlign='center'; ctx.textBaseline='top';
+        ctx.fillText(`Completed Amino Acids (${processedAA.length}/${totalAAcount})`, panelCenterX, 4*dpi);
+        const maxShow=rowsPerCol*MAX_AA_COLS; const n=Math.min(processedAA.length,maxShow);
+        for(let j=0;j<n;j++){const letter=processedAA[j];const col=Math.floor(j/rowsPerCol);const row=j%rowsPerCol;const cx=x0+col*colWidth+rTop;const r=Math.floor(rBottom+(rTop-rBottom)*(1-row/(rowsPerCol-1)));const cy=topPad+row*stepY+stepY/2+10*dpi;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.18)';ctx.fill();ctx.lineWidth=2*dpi;ctx.strokeStyle='rgba(255,255,255,.4)';ctx.stroke();ctx.fillStyle='#fff';ctx.font=`${Math.floor(r*.95)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(letter,cx,cy+1*dpi);}
+        ctx.restore();
+      }
+
+      // Right-side tutorial (4 cards: AT, CG, No stacking, Complete full row)
       function drawPairingGuide(){
         if(!showGuide) return;
         const gridW=cell*COLS,gridH=cell*ROWS;
@@ -279,26 +217,27 @@
         roundRect(x,y,w,h,12*dpi); ctx.fill();
         ctx.globalAlpha=1;
 
-        // Unified title size
+        // Title: "Tutorial"
         ctx.fillStyle='#fff';
         const titleSz=sideTitleSize();
         ctx.font=`${titleSz}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
         ctx.textAlign='center'; ctx.textBaseline='top';
-        ctx.fillText('Base-Pairing Tutorial', x+w/2, y+10*dpi);
+        ctx.fillText('Tutorial', x+w/2, y+10*dpi);
 
-        // Three cards (AT, CG, No stacking)
-        const gap = 28*dpi;
+        // Layout for 4 cards
+        const gap = 22*dpi;
         const cardW=w-24*dpi;
-        const cardH=(h - titleSz - (gap+8*dpi)*3)/3; // fit 3 cards
+        const count=4;
+        const cardH=(h - titleSz - (gap+8*dpi)*count)/count;
         const cx=x+w/2;
 
-        function pairCard(order, leftBase, rightBase, leftColor, rightColor, bonds){
+        function pairCard(order, leftBase, rightBase, leftColor, rightColor, bonds, caption){
           const topY = y + 10*dpi + titleSz + order*(cardH+gap);
           ctx.globalAlpha=0.25; ctx.fillStyle='#111827';
           roundRect(x+12*dpi, topY, cardW, cardH, 10*dpi); ctx.fill();
           ctx.globalAlpha=1;
 
-          const r = Math.min(32*dpi, Math.floor(cardH*0.25));
+          const r = Math.min(28*dpi, Math.floor(cardH*0.24));
           const lx = cx - cardW/4, rx = cx + cardW/4;
           const cy = topY + cardH/2 - 6*dpi;
 
@@ -317,10 +256,10 @@
           ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=2.5*dpi; ctx.lineCap='round';
           offsets.forEach(d=>{ ctx.beginPath(); ctx.moveTo(lx+r+6*dpi, cy+d); ctx.lineTo(rx-r-6*dpi, cy+d); ctx.stroke(); });
 
-          // Label
+          // Caption
           ctx.fillStyle='rgba(255,255,255,.9)';
-          ctx.font=`${Math.max(10*dpi, Math.floor(r*0.5))}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
-          ctx.fillText(`${leftBase} pairs with ${rightBase}`, cx, cy + r + 16*dpi);
+          ctx.font=`${Math.max(10*dpi, Math.floor(r*0.6))}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
+          ctx.fillText(caption, cx, cy + r + 16*dpi);
         }
 
         function noStackCard(order){
@@ -329,11 +268,11 @@
           roundRect(x+12*dpi, topY, cardW, cardH, 10*dpi); ctx.fill();
           ctx.globalAlpha=1;
 
-          const r = Math.min(22*dpi, Math.floor(cardH*0.18));
+          const r = Math.min(20*dpi, Math.floor(cardH*0.18));
           const cy0 = topY + cardH/2 - r*1.4;
           const cx0 = cx;
 
-          // Three stacked bases (example A, T, G)
+          // Three stacked bases (A, T, G)
           const bases = ['A','T','G'];
           const colors= [COLORS.A, COLORS.T, COLORS.G];
           for(let i=0;i<3;i++){
@@ -345,7 +284,7 @@
 
           // Red "no" symbol
           const bigR = r*2.6;
-          ctx.strokeStyle='rgba(239,68,68,0.95)'; // red-500
+          ctx.strokeStyle='rgba(239,68,68,0.95)';
           ctx.lineWidth = Math.max(4*dpi, r*0.35);
           ctx.beginPath(); ctx.arc(cx0, cy0 + r*1.6 - r*0.2, bigR, 0, Math.PI*2); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(cx0 - bigR*0.7, cy0 + r*1.6 - r*0.2 - bigR*0.7);
@@ -358,31 +297,53 @@
           ctx.fillText('No stacking — only pairs of two', cx, topY + cardH - (r*0.6) );
         }
 
-        pairCard(0,'A','T',COLORS.A,COLORS.T,2);
-        pairCard(1,'C','G',COLORS.C,COLORS.G,3);
+        function completeRowCard(order){
+          const topY = y + 10*dpi + titleSz + order*(cardH+gap);
+          ctx.globalAlpha=0.25; ctx.fillStyle='#111827';
+          roundRect(x+12*dpi, topY, cardW, cardH, 10*dpi); ctx.fill();
+          ctx.globalAlpha=1;
+
+          // Draw a mini 12-cell row with a checkmark
+          const rowPad = 10*dpi;
+          const miniCell = Math.max(10*dpi, Math.floor((cardW - 2*rowPad)/14)); // leave margins
+          const startX = x + 12*dpi + rowPad;
+          const yRow  = topY + cardH/2 - miniCell/2 - 6*dpi;
+
+          for(let i=0;i<12;i++){
+            const bx = startX + i*miniCell;
+            ctx.fillStyle='rgba(255,255,255,0.08)';
+            roundRect(bx, yRow, miniCell-2*dpi, miniCell-2*dpi, 4*dpi); ctx.fill();
+          }
+
+          // Big green check
+          const cx0 = x + 12*dpi + cardW - 36*dpi;
+          const cy0 = yRow + miniCell/2;
+          ctx.strokeStyle='rgba(16,185,129,0.95)'; // emerald-500
+          ctx.lineWidth = 5*dpi; ctx.lineCap='round';
+          ctx.beginPath();
+          ctx.moveTo(cx0-16*dpi, cy0);
+          ctx.lineTo(cx0-6*dpi, cy0+12*dpi);
+          ctx.lineTo(cx0+16*dpi, cy0-12*dpi);
+          ctx.stroke();
+
+          // Caption
+          ctx.fillStyle='rgba(255,255,255,.9)';
+          ctx.font=`${Math.max(10*dpi, Math.floor(miniCell*0.9))}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
+          ctx.textAlign='center'; ctx.textBaseline='top';
+          ctx.fillText('Complete full row to translate', x + 12*dpi + cardW/2, topY + cardH - (miniCell*0.2) );
+        }
+
+        // Cards in order
+        pairCard(0,'A','T',COLORS.A,COLORS.T,2, 'A pairs with T');
+        pairCard(1,'C','G',COLORS.C,COLORS.G,3, 'C pairs with G');
         noStackCard(2);
+        completeRowCard(3);
 
         ctx.restore();
       }
 
       function drawNextPreview(){const gridW=cell*COLS;const boxW=Math.floor(cell*2.0),boxH=Math.floor(cell*1.5);const x=gridX0+gridW-boxW-10*dpi;const y=10*dpi;ctx.save();ctx.globalAlpha=.85;ctx.fillStyle='rgba(0,0,0,.35)';roundRect(x,y,boxW,boxH,10*dpi);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle='#fff';ctx.font=`${Math.floor(12*dpi)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('NEXT',x+10*dpi,y+8*dpi);const bx=x+boxW/2,by=y+boxH/2+4*dpi;const s=Math.floor(cell*.75);const color=COLORS[nextBase]||'#6B7280';ctx.textAlign='center';ctx.textBaseline='middle';roundRect(bx-s/2,by-s/2,s,s,8*dpi);ctx.fillStyle=color;ctx.fill();ctx.fillStyle='rgba(255,255,255,.95)';ctx.font=`${Math.floor(s*.48)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.fillText(nextBase||'?',bx,by+1*dpi);const hint=COMPL[nextBase]||'?';ctx.fillStyle='rgba(255,255,255,.75)';ctx.font=`${Math.floor(s*.26)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.fillText(`↕ ${hint}`,bx,by+s*.65);ctx.restore();}
-
       function aaListForRow(row){const out=[];for(let i=0;i<COLS;i+=3){const trip=(row[i]||'')+(row[i+1]||'')+(row[i+2]||'');const aa3=CODON_TO_AA[trip]||'X';out.push(AA3_TO_1[aa3]||'?');}return out;}
-
-      function drawAAChain(){
-        const gridH=cell*ROWS; const topPad=Math.max(10*dpi,Math.floor(cell*.2)); const bottomPad=Math.max(6*dpi,Math.floor(cell*.15));
-        const usableH=gridH-topPad-bottomPad; const rowsPerCol=ROWS_PER_COL; const colsNeeded=Math.min(MAX_AA_COLS,Math.max(1,Math.ceil(processedAA.length/rowsPerCol)));
-        const rTop=Math.max(9*dpi,Math.floor(cell*.24)); const rBottom=Math.max(7*dpi,Math.floor(cell*.14));
-        const stepY=usableH/rowsPerCol; const colGap=6*dpi; const colWidth=2*rTop+colGap;
-        const panelCenterX=Math.floor(leftPanelPx/2); const totalW=colsNeeded*colWidth; const x0=Math.max(8*dpi, panelCenterX-Math.floor(totalW/2));
-        ctx.save(); ctx.fillStyle='rgba(255,255,255,.7)';
-        const titleSz=sideTitleSize();
-        ctx.font=`${titleSz}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`; ctx.textAlign='center'; ctx.textBaseline='top';
-        ctx.fillText('Completed Amino Acids', panelCenterX, 4*dpi);
-        const maxShow=rowsPerCol*MAX_AA_COLS; const n=Math.min(processedAA.length,maxShow);
-        for(let j=0;j<n;j++){const letter=processedAA[j];const col=Math.floor(j/rowsPerCol);const row=j%rowsPerCol;const cx=x0+col*colWidth+rTop;const r=Math.floor(rBottom+(rTop-rBottom)*(1-row/(rowsPerCol-1)));const cy=topPad+row*stepY+stepY/2+10*dpi;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.18)';ctx.fill();ctx.lineWidth=2*dpi;ctx.strokeStyle='rgba(255,255,255,.4)';ctx.stroke();ctx.fillStyle='#fff';ctx.font=`${Math.floor(r*.95)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(letter,cx,cy+1*dpi);}
-        ctx.restore();
-      }
 
       function draw(){
         drawGrid(); drawCodonBackgrounds();
@@ -403,8 +364,18 @@
             if(level===1){ showGuide=false; }
             score+=100; level++; fallInterval=Math.max(160,Math.floor(fallInterval*0.9)); pendingSpawn=true;
             const justRow=bottomRow.slice();
-            rowComplete(()=>{ const aaList=aaListForRow(justRow); processedAA.push(...aaList);
-              seqIdx=(seqIdx+COLS)%masterSeq.length; bottomRow=getSegment(seqIdx,COLS); placedTop=Array(COLS).fill(null); filledCount=0; updateHUD(); nextBase=pickValidBase(); piece=spawnPiece(); pendingSpawn=false; });
+            rowComplete(()=>{ 
+              const aaList=aaListForRow(justRow); 
+              processedAA.push(...aaList); // <-- LIVE COUNTER UPDATES HERE
+              seqIdx=(seqIdx+COLS)%masterSeq.length; 
+              bottomRow=getSegment(seqIdx,COLS); 
+              placedTop=Array(COLS).fill(null); 
+              filledCount=0; 
+              updateHUD(); 
+              nextBase=pickValidBase(); 
+              piece=spawnPiece(); 
+              pendingSpawn=false; 
+            });
             return;
           }
         }else{
@@ -428,6 +399,7 @@
         scoreEl.textContent=`Score ${score}`;
         levelPill.textContent = `Level ${level}`;
         livesEl.textContent='❤❤❤'.slice(0,lives).padEnd(3,'☆');
+        // (Completed Amino Acids counter is drawn in drawAAChain() every frame)
       }
 
       function step(ts){
@@ -442,8 +414,20 @@
       function softDrop(){ piece.y=Math.min(piece.y+1,BUILD_ROW); if(piece.y>=BUILD_ROW) tryLock(); }
       function hardDrop(){ piece.y=BUILD_ROW; tryLock(); }
       function togglePause(){ if(!hasStarted) return; running=!running; overlay.style.display=running?'none':'flex'; ovTitle.textContent=running?'':'Paused'; ovSub.textContent=running?'':'Press P to resume'; }
-      function restart(){ score=0; level=1; lives=3; fallInterval=560; lastStep=0; seqIdx=0; bottomRow=getSegment(seqIdx,COLS); placedTop=Array(COLS).fill(null); filledCount=0; processedAA=[]; nextBase=pickValidBase(); piece=spawnPiece(); running=true; overlay.style.display='none'; showGuide=true; updateHUD(); draw(); }
-      function startGame(seq){ masterSeq=sanitizeDNA(seq)||DEFAULT_SEQ; seqIdx=0; hasStarted=true; restart(); }
+      function restart(){ 
+        score=0; level=1; lives=3; fallInterval=560; lastStep=0; seqIdx=0; 
+        bottomRow=getSegment(seqIdx,COLS); placedTop=Array(COLS).fill(null); filledCount=0; 
+        processedAA=[]; 
+        nextBase=pickValidBase(); piece=spawnPiece(); 
+        running=true; overlay.style.display='none'; showGuide=true; 
+        updateHUD(); draw(); 
+      }
+      function startGame(seq){ 
+        masterSeq=sanitizeDNA(seq)||DEFAULT_SEQ; 
+        totalAAcount=Math.floor(masterSeq.length/3); // <-- set total AA target from sequence length
+        seqIdx=0; hasStarted=true; 
+        restart(); 
+      }
 
       // block page scroll for arrow/space unless typing in input
       window.addEventListener('keydown', (e)=>{
