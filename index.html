@@ -22,7 +22,6 @@
   canvas{display:block;margin:0 auto}
   .level-pill{ padding:6px 14px;border-radius:999px;font-weight:800;
     background:#111827;color:#fff;font-size:14px;letter-spacing:.2px }
-  /* overlay buttons row */
   .ov-actions{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
   .btn-secondary{background:#374151}
 </style>
@@ -51,12 +50,7 @@
   <div class="dna-canvas-wrap">
     <canvas id="dna-board" aria-label="DNA game canvas" role="img"></canvas>
 
-    <div class="dna-controls" style="position:absolute;left:0;right:0;bottom:8px;display:flex;justify-content:center;gap:12px;">
-      <button class="dna-btn" data-act="left"  aria-label="Move left">◀</button>
-      <button class="dna-btn" data-act="down"  aria-label="Soft drop">▼</button>
-      <button class="dna-btn" data-act="right" aria-label="Move right">▶</button>
-      <button class="dna-btn" data-act="hard"  aria-label="Hard drop">⤓</button>
-    </div>
+    <!-- Bottom button controls removed per request -->
 
     <div id="dna-overlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);">
       <div style="background:white;padding:16px;border-radius:12px;text-align:center;width:min(90%,520px);box-shadow:0 10px 20px rgba(0,0,0,.2);">
@@ -82,7 +76,7 @@
 </div>
 
 <script>
-/* ===== DNA Complement Tetris – Tutorial + GFP start, no-scroll keys ===== */
+/* ===== DNA Complement Tetris – unified titles, GFP start, no-stack card ===== */
 (function(){
   try{
     const MOUNT_ID='dna-tetris-root';
@@ -90,7 +84,7 @@
     const COMPL={A:'T',T:'A',C:'G',G:'C'};
     const COLORS={A:'#4F46E5',T:'#F59E0B',C:'#10B981',G:'#8B5CF6'};
 
-    // Default GFP sequence (lowercase shown to user; uppercase stored)
+    // GFP sequence (lowercase shown; uppercase used internally)
     const DEFAULT_SEQ_LOWER="atgcgtaaaggagaagaacttttcactggagttgtcccaattcttgttgaattagatggtgatgttaatgggcacaaattttctgtcagtggagagggtgaaggtgatgcaacatacggaaaacttacccttaaatttatttgcactactggaaaactacctgttccatggccaacacttgtcactactttcggttatggtgttcaatgctttgcgagatacccagatcatatgaaacagcatgactttttcaagagtgccatgcccgaaggttatgtacaggaaagaactatatttttcaaagatgacgggaactacaagacacgtgctgaagtcaagtttgaaggtgatacccttgttaatagaatcgagttaaaaggtattgattttaaagaagatggaaacattcttggacacaaattggaatacaactataactcacacaatgtatacatcatggcagacaaacaaaagaatggaatcaaagttaacttcaaaattagacacaacattgaagatggaagcgttcaactagcagaccattatcaacaaaatactccaattggcgatggccctgtccttttaccagacaaccattacctgtccacacaatctgccctttcgaaagatcccaacgaaaagagagatcacatggtccttcttgagtttgtaacagctgctgggattacacatggcatggatgaactatacaaataataa";
     const DEFAULT_SEQ = DEFAULT_SEQ_LOWER.toUpperCase();
 
@@ -109,29 +103,28 @@
       const livesEl=host.querySelector('#dna-lives');
       const overlay=host.querySelector('#dna-overlay'); const ovTitle=host.querySelector('#dna-ov-title'); const ovSub=host.querySelector('#dna-ov-sub');
       const seqInput=host.querySelector('#dna-seq-input'); const startBtn=host.querySelector('#dna-seq-start'); const msgEl=host.querySelector('#dna-msg');
-      const startGfpBtn=document.getElementById('startGfpBtn');
-      const startCustomBtn=document.getElementById('startCustomBtn');
+      const startGfpBtn=document.getElementById('startGfpBtn'); const startCustomBtn=document.getElementById('startCustomBtn');
 
-      // Prefill input with GFP (editable)
       seqInput.value = DEFAULT_SEQ_LOWER;
 
-      /* --- geometry --- */
+      /* geometry */
       const COLS=12, ROWS=9;
       const BUILD_ROW=ROWS-2, TARGET_ROW=ROWS-1;
       const ROWS_PER_COL=20, MAX_AA_COLS=5;
       let dpi=Math.max(1, Math.floor(window.devicePixelRatio||1));
       let cell=0, labelPx=0, gridX0=0, leftPanelPx=0, rightPanelPx=0;
 
-      /* --- state --- */
+      /* state */
       let running=false, hasStarted=false, score=0, level=1, lives=3, fallInterval=560, lastStep=0;
       let masterSeq=DEFAULT_SEQ, seqIdx=0;
       let bottomRow=[], placedTop=Array(COLS).fill(null), filledCount=0;
       let processedAA=[], nextBase='A', piece={base:'A',x:(COLS/2)|0,y:-4}, pendingSpawn=false;
-      let showGuide=true; // tutorial visible until level > 1
+      let showGuide=true;
 
       overlay.style.display='flex'; ovTitle.textContent='Ready';
       ovSub.innerHTML='Paste a DNA sequence and click <strong>Enter</strong> — or start with GFP.<br><em>A pairs with T, and C pairs with G.</em>';
 
+      /* helpers */
       function sanitizeDNA(s){return (s||'').toUpperCase().replace(/[^ATCG]/g,'');}
       function getSegment(start,len){const arr=[];const n=(masterSeq||'').length||1;for(let i=0;i<len;i++)arr.push(masterSeq[(start+i)%n]||'A');return arr;}
       function hasValidSlot(base){const want=COMPL[base];for(let c=0;c<COLS;c++)if(!placedTop[c]&&bottomRow[c]===want)return true;return false;}
@@ -141,7 +134,7 @@
       function resize(){
         const viewportW = window.innerWidth, viewportH = window.innerHeight;
         const boxW = host.clientWidth || viewportW;
-        const boxH = Math.max(440, Math.min(Math.round(viewportH*0.78), 1100));
+        const boxH = Math.max(480, Math.min(Math.round(viewportH*0.78), 1100));
         wrap.style.width = boxW + 'px';
         wrap.style.height = boxH + 'px';
         cvs.style.width = boxW + 'px';
@@ -175,7 +168,9 @@
       }
       window.addEventListener('resize', resize);
 
-      // drawing helpers
+      /* drawing */
+      function sideTitleSize(){ return Math.max(12*dpi, Math.floor(cell*0.45)); } // unified font size
+
       function roundRect(x,y,w,h,r){const rr=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+rr,y);ctx.arcTo(x+w,y,x+w,y+h,rr);ctx.arcTo(x+w,y+h,x,y+h,rr);ctx.arcTo(x,y+h,x,y,rr);ctx.arcTo(x,y,x+w,y,rr);ctx.closePath();}
       function drawCell(col,row,color,text,alpha=1){const pad=Math.floor(cell*0.08);const x=gridX0+col*cell+pad;const y=row*cell+pad;const s=cell-pad*2;ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle=color;roundRect(x,y,s,s,Math.floor(s*0.2));ctx.fill();ctx.fillStyle='rgba(255,255,255,.95)';ctx.font=`${Math.floor(s*0.5)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,x+s/2,y+s/2+1*dpi);ctx.restore();}
       function drawGrid(){const gridW=cell*COLS,gridH=cell*ROWS;ctx.save();ctx.clearRect(0,0,cvs.width,cvs.height);
@@ -189,7 +184,7 @@
       function drawCodonLabels(){const gridH=cell*ROWS;const y=gridH+Math.floor(labelPx*0.62);ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
         for(let i=0;i<COLS;i+=3){const trip=(bottomRow[i]||'')+(bottomRow[i+1]||'')+(bottomRow[i+2]||'');const aa=CODON_TO_AA[trip]||'—';const cx=gridX0+(i+1.5)*cell;ctx.save();const color=['#2563EB','#D97706','#059669','#7C3AED','#DC2626','#059669'][i/3%6];const padY=7*dpi,w=3*cell-8*dpi;const x=gridX0+i*cell+4*dpi;const h=padY*2+Math.max(12*dpi,Math.floor(cell*0.35));ctx.globalAlpha=.25;ctx.fillStyle=color;roundRect(x,y-h/2,w,h,10*dpi);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle='#fff';ctx.font=`${Math.max(11*dpi,Math.floor(cell*0.37))}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.fillText(aa,cx,y+1*dpi);ctx.restore();}ctx.restore();}
 
-      // Right-side tutorial (smaller title font now)
+      // Right-side tutorial with third "No stacking" card
       function drawPairingGuide(){
         if(!showGuide) return;
         const gridW=cell*COLS,gridH=cell*ROWS;
@@ -200,23 +195,29 @@
         ctx.globalAlpha=0.35; ctx.fillStyle='#000';
         roundRect(x,y,w,h,12*dpi); ctx.fill();
         ctx.globalAlpha=1;
+
+        // Unified title size
         ctx.fillStyle='#fff';
-        const titleSz=Math.max(12*dpi, Math.floor(cell*0.45));  /* smaller font */
+        const titleSz=sideTitleSize();
         ctx.font=`${titleSz}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
         ctx.textAlign='center'; ctx.textBaseline='top';
         ctx.fillText('Base-Pairing Tutorial', x+w/2, y+10*dpi);
 
-        const cardW=w-24*dpi, cardH=(h- titleSz - 36*dpi)/2;
+        // Three cards (AT, CG, No stacking)
+        const gap = 28*dpi;
+        const cardW=w-24*dpi;
+        const cardH=(h - titleSz - (gap+8*dpi)*3)/3; // fit 3 cards
         const cx=x+w/2;
-        function card(top, leftBase, rightBase, leftColor, rightColor, bonds){
-          const topY = y + 10*dpi + titleSz + top;
+
+        function pairCard(order, leftBase, rightBase, leftColor, rightColor, bonds){
+          const topY = y + 10*dpi + titleSz + order*(cardH+gap);
           ctx.globalAlpha=0.25; ctx.fillStyle='#111827';
-          roundRect(x+12*dpi, topY, cardW, cardH-8*dpi, 10*dpi); ctx.fill();
+          roundRect(x+12*dpi, topY, cardW, cardH, 10*dpi); ctx.fill();
           ctx.globalAlpha=1;
 
           const r = Math.min(32*dpi, Math.floor(cardH*0.25));
           const lx = cx - cardW/4, rx = cx + cardW/4;
-          const cy = topY + (cardH-8*dpi)/2;
+          const cy = topY + cardH/2 - 6*dpi;
 
           ctx.fillStyle=leftColor;  ctx.beginPath(); ctx.arc(lx, cy, r, 0, Math.PI*2); ctx.fill();
           ctx.fillStyle=rightColor; ctx.beginPath(); ctx.arc(rx, cy, r, 0, Math.PI*2); ctx.fill();
@@ -227,22 +228,62 @@
           ctx.fillText(leftBase,  lx, cy+1*dpi);
           ctx.fillText(rightBase, rx, cy+1*dpi);
 
+          // Bonds
           const delta = 10*dpi;
           const offsets = bonds===2 ? [-delta,+delta] : [-delta,0,+delta];
           ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=2.5*dpi; ctx.lineCap='round';
           offsets.forEach(d=>{ ctx.beginPath(); ctx.moveTo(lx+r+6*dpi, cy+d); ctx.lineTo(rx-r-6*dpi, cy+d); ctx.stroke(); });
 
+          // Label
           ctx.fillStyle='rgba(255,255,255,.9)';
           ctx.font=`${Math.max(10*dpi, Math.floor(r*0.5))}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
-          ctx.fillText(`${leftBase} pairs with ${rightBase}`, cx, cy + r + 14*dpi);
+          ctx.fillText(`${leftBase} pairs with ${rightBase}`, cx, cy + r + 16*dpi);
         }
 
-        card(20*dpi, 'A','T', COLORS.A, COLORS.T, 2);
-        card(cardH + 28*dpi, 'C','G', COLORS.C, COLORS.G, 3);
+        function noStackCard(order){
+          const topY = y + 10*dpi + titleSz + order*(cardH+gap);
+          ctx.globalAlpha=0.25; ctx.fillStyle='#111827';
+          roundRect(x+12*dpi, topY, cardW, cardH, 10*dpi); ctx.fill();
+          ctx.globalAlpha=1;
+
+          const r = Math.min(22*dpi, Math.floor(cardH*0.18));
+          const cy0 = topY + cardH/2 - r*1.4;
+          const cx0 = cx;
+
+          // Three stacked bases (example A, T, G)
+          const bases = ['A','T','G'];
+          const colors= [COLORS.A, COLORS.T, COLORS.G];
+          for(let i=0;i<3;i++){
+            ctx.fillStyle=colors[i]; ctx.beginPath(); ctx.arc(cx0, cy0 + i*(r*1.6), r, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='#fff'; ctx.font=`${Math.floor(r*.9)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
+            ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillText(bases[i], cx0, cy0 + i*(r*1.6) + 1*dpi);
+          }
+
+          // Red "no" symbol
+          const bigR = r*2.6;
+          ctx.strokeStyle='rgba(239,68,68,0.95)'; // red-500
+          ctx.lineWidth = Math.max(4*dpi, r*0.35);
+          ctx.beginPath(); ctx.arc(cx0, cy0 + r*1.6 - r*0.2, bigR, 0, Math.PI*2); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(cx0 - bigR*0.7, cy0 + r*1.6 - r*0.2 - bigR*0.7);
+          ctx.lineTo(cx0 + bigR*0.7, cy0 + r*1.6 - r*0.2 + bigR*0.7); ctx.stroke();
+
+          // Caption
+          ctx.fillStyle='rgba(255,255,255,.9)';
+          ctx.font=`${Math.max(10*dpi, Math.floor(r*0.7))}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
+          ctx.textAlign='center'; ctx.textBaseline='top';
+          ctx.fillText('No stacking — only pairs of two', cx, topY + cardH - (r*0.6) );
+        }
+
+        pairCard(0,'A','T',COLORS.A,COLORS.T,2);
+        pairCard(1,'C','G',COLORS.C,COLORS.G,3);
+        noStackCard(2);
+
         ctx.restore();
       }
 
       function drawNextPreview(){const gridW=cell*COLS;const boxW=Math.floor(cell*2.0),boxH=Math.floor(cell*1.5);const x=gridX0+gridW-boxW-10*dpi;const y=10*dpi;ctx.save();ctx.globalAlpha=.85;ctx.fillStyle='rgba(0,0,0,.35)';roundRect(x,y,boxW,boxH,10*dpi);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle='#fff';ctx.font=`${Math.floor(12*dpi)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('NEXT',x+10*dpi,y+8*dpi);const bx=x+boxW/2,by=y+boxH/2+4*dpi;const s=Math.floor(cell*.75);const color=COLORS[nextBase]||'#6B7280';ctx.textAlign='center';ctx.textBaseline='middle';roundRect(bx-s/2,by-s/2,s,s,8*dpi);ctx.fillStyle=color;ctx.fill();ctx.fillStyle='rgba(255,255,255,.95)';ctx.font=`${Math.floor(s*.48)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.fillText(nextBase||'?',bx,by+1*dpi);const hint=COMPL[nextBase]||'?';ctx.fillStyle='rgba(255,255,255,.75)';ctx.font=`${Math.floor(s*.26)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.fillText(`↕ ${hint}`,bx,by+s*.65);ctx.restore();}
+
       function aaListForRow(row){const out=[];for(let i=0;i<COLS;i+=3){const trip=(row[i]||'')+(row[i+1]||'')+(row[i+2]||'');const aa3=CODON_TO_AA[trip]||'X';out.push(AA3_TO_1[aa3]||'?');}return out;}
 
       function drawAAChain(){
@@ -251,7 +292,9 @@
         const rTop=Math.max(9*dpi,Math.floor(cell*.24)); const rBottom=Math.max(7*dpi,Math.floor(cell*.14));
         const stepY=usableH/rowsPerCol; const colGap=6*dpi; const colWidth=2*rTop+colGap;
         const panelCenterX=Math.floor(leftPanelPx/2); const totalW=colsNeeded*colWidth; const x0=Math.max(8*dpi, panelCenterX-Math.floor(totalW/2));
-        ctx.save(); ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font=`${Math.floor(12*dpi)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`; ctx.textAlign='center'; ctx.textBaseline='top';
+        ctx.save(); ctx.fillStyle='rgba(255,255,255,.7)';
+        const titleSz=sideTitleSize();
+        ctx.font=`${titleSz}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`; ctx.textAlign='center'; ctx.textBaseline='top';
         ctx.fillText('Completed Amino Acids', panelCenterX, 4*dpi);
         const maxShow=rowsPerCol*MAX_AA_COLS; const n=Math.min(processedAA.length,maxShow);
         for(let j=0;j<n;j++){const letter=processedAA[j];const col=Math.floor(j/rowsPerCol);const row=j%rowsPerCol;const cx=x0+col*colWidth+rTop;const r=Math.floor(rBottom+(rTop-rBottom)*(1-row/(rowsPerCol-1)));const cy=topPad+row*stepY+stepY/2+10*dpi;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.18)';ctx.fill();ctx.lineWidth=2*dpi;ctx.strokeStyle='rgba(255,255,255,.4)';ctx.stroke();ctx.fillStyle='#fff';ctx.font=`${Math.floor(r*.95)}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(letter,cx,cy+1*dpi);}
@@ -266,6 +309,7 @@
         drawCodonLabels(); drawNextPreview(); drawAAChain(); drawPairingGuide();
       }
 
+      /* logic */
       function canPlaceAt(x){return x>=0 && x<COLS;}
       function tryLock(){
         const x=piece.x; const target=bottomRow[x];
@@ -318,16 +362,14 @@
       function restart(){ score=0; level=1; lives=3; fallInterval=560; lastStep=0; seqIdx=0; bottomRow=getSegment(seqIdx,COLS); placedTop=Array(COLS).fill(null); filledCount=0; processedAA=[]; nextBase=pickValidBase(); piece=spawnPiece(); running=true; overlay.style.display='none'; showGuide=true; updateHUD(); draw(); }
       function startGame(seq){ masterSeq=sanitizeDNA(seq)||DEFAULT_SEQ; seqIdx=0; hasStarted=true; restart(); }
 
-      // --- GLOBAL: prevent page scroll with arrow keys/space (unless typing in input) ---
+      // block page scroll for arrow/space unless typing in input
       window.addEventListener('keydown', (e)=>{
         const inText = document.activeElement && (document.activeElement.tagName==='INPUT' || document.activeElement.isContentEditable);
         if(inText) return;
-        if(e.key==='ArrowDown' || e.key==='ArrowUp' || e.key===' '){
-          e.preventDefault();
-        }
+        if(e.key==='ArrowDown' || e.key==='ArrowUp' || e.key===' '){ e.preventDefault(); }
       }, {passive:false});
 
-      // Game keys
+      // gameplay keys
       window.addEventListener('keydown', e=>{
         if(e.repeat) return;
         const k=e.key;
@@ -344,7 +386,7 @@
         else if(k==='r'||k==='R'){ restart(); }
       }, {passive:false});
 
-      // Input validation + Start
+      // input validation + start actions
       function validateInput(){
         const raw=seqInput.value||''; const clean=sanitizeDNA(raw);
         if(raw!==clean){ const pos=seqInput.selectionStart; seqInput.value=clean.toLowerCase(); try{seqInput.setSelectionRange(Math.max(0,pos-1),Math.max(0,pos-1));}catch(_){ } }
@@ -360,17 +402,12 @@
       startCustomBtn.addEventListener('click', ()=>{ if(!startBtn.disabled){ startGame(seqInput.value); cvs.focus && cvs.focus(); }});
       seqInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); if(!startBtn.disabled){ startGame(seqInput.value); cvs.focus && cvs.focus(); } } });
 
-      // Start with GFP button
+      // Start with GFP
       startGfpBtn.addEventListener('click', ()=>{
         seqInput.value = DEFAULT_SEQ_LOWER;
         validateInput();
         startGame(DEFAULT_SEQ);
         cvs.focus && cvs.focus();
-      });
-
-      host.querySelector('.dna-controls').addEventListener('click', e=>{
-        const btn=e.target.closest('[data-act]'); if(!btn || !running) return;
-        const act=btn.getAttribute('data-act'); if(act==='left') move(-1); if(act==='right') move(1); if(act==='down') softDrop(); if(act==='hard') hardDrop();
       });
 
       function shake(){ wrap.style.transition='transform 80ms'; wrap.style.transform='translateX(4px)'; setTimeout(()=>{ wrap.style.transform='translateX(-4px)'; },80); setTimeout(()=>{ wrap.style.transform='translateX(0)'; },160); }
